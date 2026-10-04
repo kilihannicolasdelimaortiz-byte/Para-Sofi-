@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galaxia 3D - Para Sofi</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #fff;
+        }
+
+        /* Pantalla de inicio interactiva */
+        #welcome-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, #20002c 0%, #000000 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            cursor: pointer;
+            transition: opacity 1s ease;
+        }
+
+        .heart-icon {
+            font-size: 80px;
+            color: #ff3366;
+            animation: pulse 1.2s infinite alternate;
+            text-shadow: 0 0 20px #ff3366;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.25); }
+        }
+
+        #welcome-screen p {
+            margin-top: 20px;
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+            color: #ffb3c6;
+            text-transform: uppercase;
+        }
+
+        /* Reproductor de Spotify integrado (fijo en la esquina inferior) */
+        #spotify-player {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 5;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 0 15px rgba(255, 51, 102, 0.5);
+            opacity: 0.85;
+            transition: opacity 0.3s;
+        }
+
+        #spotify-player:hover {
+            opacity: 1;
+        }
+
+        #webgl-container {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+    <!-- Librerías Three.js para la galaxia 3D y controles táctiles -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+    <!-- Pantalla interactiva previa -->
+    <div id="welcome-screen">
+        <div class="heart-icon">💖</div>
+        <p>Toca para entrar</p>
+    </div>
+
+    <!-- Reproductor Spotify con tu enlace (Gustavo Cerati - Llegaste) -->
+    <div id="spotify-player">
+        <iframe src="https://open.spotify.com/embed/track/2ERsOI9yPePHyAFqDy58EW?utm_source=generator&theme=0" 
+                width="250" 
+                height="80" 
+                frameBorder="0" 
+                allowfullscreen="" 
+                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+                loading="lazy">
+        </iframe>
+    </div>
+
+    <!-- Contenedor 3D -->
+    <div id="webgl-container"></div>
+
+    <script>
+        // Control de inicio e interacción
+        const welcomeScreen = document.getElementById('welcome-screen');
+
+        welcomeScreen.addEventListener('click', () => {
+            welcomeScreen.style.opacity = '0';
+            setTimeout(() => {
+                welcomeScreen.style.display = 'none';
+            }, 1000);
+        });
+
+        // Escena, Cámara y Renderizador Three.js
+        const container = document.getElementById('webgl-container');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x050010, 0.0015);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 15, 60);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(renderer.domElement);
+
+        // Controles táctiles y mouse
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.rotateSpeed = 0.8;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.5;
+
+        // Galaxia de Partículas Espirales
+        const particleCount = 20000;
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        const colors = new Float32Array(particleCount * 3);
+
+        const colorInside = new THREE.Color(0xff0066);
+        const colorOutside = new THREE.Color(0x9900ff);
+
+        for (let i = 0; i < particleCount; i++) {
+            const radius = Math.random() * 40 + 2;
+            const spinAngle = radius * 0.3;
+            const branchAngle = ((i % 3) * 2 * Math.PI) / 3;
+
+            const randomX = (Math.random() - 0.5) * 4;
+            const randomY = (Math.random() - 0.5) * 4;
+            const randomZ = (Math.random() - 0.5) * 4;
+
+            const x = Math.cos(branchAngle + spinAngle) * radius + randomX;
+            const y = (Math.random() - 0.5) * (15 - radius * 0.2) + randomY;
+            const z = Math.sin(branchAngle + spinAngle) * radius + randomZ;
+
+            positions[i * 3] = x;
+            positions[i * 3 + 1] = y;
+            positions[i * 3 + 2] = z;
+
+            const mixedColor = colorInside.clone();
+            mixedColor.lerp(colorOutside, radius / 40);
+
+            colors[i * 3] = mixedColor.r;
+            colors[i * 3 + 1] = mixedColor.g;
+            colors[i * 3 + 2] = mixedColor.b;
+        }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        const material = new THREE.PointsMaterial({
+            size: 0.25,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.8,
+            blending: THREE.AdditiveBlending
+        });
+
+        const galaxyPoints = new THREE.Points(geometry, material);
+        scene.add(galaxyPoints);
+
+        // Generador de Textos Flotantes 3D
+        function createTextSprite(text, fontSize = 42, color = "#ffffff") {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = 512;
+            canvas.height = 128;
+
+            context.font = `Bold ${fontSize}px Arial`;
+            context.fillStyle = color;
+            context.textAlign = 'center';
+            context.shadowColor = '#ff0066';
+            context.shadowBlur = 12;
+            context.fillText(text, canvas.width / 2, canvas.height / 2 + fontSize / 3);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
+            return new THREE.Sprite(spriteMaterial);
+        }
+
+        // Distribución de frases personalizadas en la órbita de la galaxia
+        const phraseList = [
+            { text: "¿Puedo ser tu novio Sofi?", count: 20, color: "#ffffff", size: 38, scale: [15, 3.75, 1] },
+            { text: "Te amoooo mi amorrr💗💗💗", count: 20, color: "#ffb3c6", size: 36, scale: [16, 4, 1] },
+            { text: "Sos mi todo", count: 20, color: "#ff66b2", size: 38, scale: [10, 2.5, 1] },
+            { text: "Mi meme tiquitita", count: 20, color: "#ff80bf", size: 38, scale: [13, 3.25, 1] },
+            { text: "200", count: 35, color: "#ff3399", size: 36, scale: [6, 1.5, 1] }
+        ];
+
+        phraseList.forEach(item => {
+            for (let i = 0; i < item.count; i++) {
+                const sprite = createTextSprite(item.text, item.size, item.color);
+                
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 6 + Math.random() * 34;
+                sprite.position.x = Math.cos(angle) * dist;
+                sprite.position.y = (Math.random() - 0.5) * 22;
+                sprite.position.z = Math.sin(angle) * dist;
+                
+                sprite.scale.set(item.scale[0], item.scale[1], item.scale[2]);
+                scene.add(sprite);
+            }
+        });
+
+        // Corazón 3D central
+        const heartShape = new THREE.Shape();
+        const x = 0, y = 0;
+        heartShape.moveTo(x + 0.25, y + 0.25);
+        heartShape.bezierCurveTo(x + 0.25, y + 0.25, x + 0.2, y, x, y);
+        heartShape.bezierCurveTo(x - 0.3, y, x - 0.3, y + 0.35, x - 0.3, y + 0.35);
+        heartShape.bezierCurveTo(x - 0.3, y + 0.55, x - 0.1, y + 0.77, x + 0.25, y + 0.95);
+        heartShape.bezierCurveTo(x + 0.6, y + 0.77, x + 0.8, y + 0.55, x + 0.8, y + 0.35);
+        heartShape.bezierCurveTo(x + 0.8, y + 0.35, x + 0.8, y, x + 0.5, y);
+        heartShape.bezierCurveTo(x + 0.35, y, x + 0.25, y + 0.25, x + 0.25, y + 0.25);
+
+        const extrudeSettings = { depth: 0.2, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: 0.1, bevelThickness: 0.1 };
+        const heartGeometry = new THREE.ExtrudeGeometry(heartShape, extrudeSettings);
+        heartGeometry.center();
+
+        const heartMaterial = new THREE.MeshBasicMaterial({ color: 0xff0055, wireframe: true });
+        const heartMesh = new THREE.Mesh(heartGeometry, heartMaterial);
+        heartMesh.scale.set(4, 4, 4);
+        scene.add(heartMesh);
+
+        // Bucle de Animación
+        let clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const elapsedTime = clock.getElapsedTime();
+
+            galaxyPoints.rotation.y = elapsedTime * 0.05;
+            
+            const scale = 4 + Math.sin(elapsedTime * 3) * 0.3;
+            heartMesh.scale.set(scale, scale, scale);
+            heartMesh.rotation.y = elapsedTime * 0.5;
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
